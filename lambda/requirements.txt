@@ -1,0 +1,2 @@
+# this file is empty
+# it is used to install dependencies, packages in the lambda function
