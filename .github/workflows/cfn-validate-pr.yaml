@@ -1,4 +1,5 @@
 name: Validate CloudFormation PR
+
 on:
   pull_request:
     branches:
@@ -13,11 +14,12 @@ permissions:
 jobs:
   validate-cfn:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Set up AWS CLI
+      - name: Set up AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -26,18 +28,20 @@ jobs:
 
       - name: Validate CloudFormation template
         run: |
-          aws cloudformation validate-template --template-body file://cloudformation/s3-bucket.yaml
+          aws cloudformation validate-template \
+            --template-body file://cloudformation/s3-bucket.yaml
 
       - name: Deploy CloudFormation stack
         run: |
           stack_name="pr-test-stack-${{ github.event.pull_request.number }}"
-          aws cloudformation create-stack --stack-name $stack_name \
+          aws cloudformation create-stack \
+            --stack-name "$stack_name" \
             --template-body file://cloudformation/s3-bucket.yaml \
             --parameters ParameterKey=BucketName,ParameterValue=test \
             --capabilities CAPABILITY_NAMED_IAM
 
-      - name: Comments on the PR
-        uses: actions/github-script@v4
+      - name: Comment on the PR
+        uses: actions/github-script@v6 # Updated to latest maintained version
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -45,22 +49,23 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: 'CloudFormation test stack deployed successfully! Stack name: pr-test-stack-${{ github.event.pull_request.number }}'
+              body: `✅ CloudFormation test stack deployed successfully!\nStack name: pr-test-stack-${{ github.event.pull_request.number }}`
             })
 
-cleanup-on-merge:
-  runs-on: ubuntu-latest
-  if: github.event.pull_request.merged == true
-  steps:
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v1
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: eu-west-1
+  cleanup-on-merge:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
 
-    - name: Delete CloudFormation stack
-      run: |
-        stack_name="pr-test-stack-${{ github.event.pull_request.number }}"
-        aws cloudformation delete-stack --stack-name $stack_name
-        echo "CloudFormation stack $stack_name deleted successfully."
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-1
+
+      - name: Delete CloudFormation stack
+        run: |
+          stack_name="pr-test-stack-${{ github.event.pull_request.number }}"
+          aws cloudformation delete-stack --stack-name "$stack_name"
+          echo "🗑️ CloudFormation stack $stack_name deleted successfully."
