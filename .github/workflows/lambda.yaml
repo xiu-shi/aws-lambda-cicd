@@ -18,10 +18,11 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r lambda/requirements.txt -t lambda/
+          cd lambda
+          pip install -r requirements.txt -t .
 
       - name: Configure AWS Creds
         uses: aws-actions/configure-aws-credentials@v4
